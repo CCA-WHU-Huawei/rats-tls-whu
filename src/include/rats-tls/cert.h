@@ -55,8 +55,8 @@ typedef struct {
 } csv_attestation_evidence_t;
 
 typedef struct {
-	uint8_t token[8192];
-	uint32_t token_len;
+	uint8_t report[8192];
+	uint32_t report_len;
 } cca_attestation_evidence_t;
 
 typedef struct {
