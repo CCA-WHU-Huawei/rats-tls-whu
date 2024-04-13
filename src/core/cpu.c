@@ -279,3 +279,19 @@ bool is_csvguest_supported(void)
 	return false;
 #endif
 }
+
+
+/* check whether running in CCA guest */
+bool is_ccaguest_supported(void)
+{
+	// int cpu_info[4] = { 0, 0, 0, 0 };
+
+	// __cpuidex(cpu_info, CCA_CPUID, 0);
+
+	// return !!(cpu_info[0] & CCA_STRING);
+
+	//TODO:fix cca flag check;
+	return true;
+}
+
+
