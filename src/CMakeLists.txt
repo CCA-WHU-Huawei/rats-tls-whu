@@ -1,19 +1,23 @@
 # Set include directory
 set(INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
-                 ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls
-                 ${CMAKE_CURRENT_SOURCE_DIR}/include/internal
-                 /opt/intel/sgxsdk/include
-                 /usr/include
-                 )
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/internal
+)
+
+if(CCA)
+endif()
+
 if(SGX)
     list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include/edl
-                             ${CMAKE_BINARY_DIR}/src/sgx/trust
-                             )
+        ${CMAKE_BINARY_DIR}/src/sgx/trust
+        /opt/intel/sgxsdk/include
+    )
 endif()
 
 # Add third party and instance directory
 add_subdirectory(attesters)
 add_subdirectory(verifiers)
+
 if(SGX)
     add_subdirectory(sgx)
 endif()
@@ -22,6 +26,7 @@ endif()
 if(SGX)
     list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include)
 endif()
+
 add_subdirectory(crypto_wrappers)
 add_subdirectory(tls_wrappers)
 
@@ -65,31 +70,32 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/verifiers/internal/rtls_enclave_verifier_load_all.c
     ${CMAKE_CURRENT_SOURCE_DIR}/verifiers/internal/rtls_enclave_verifier_load_single.c
     ${CMAKE_CURRENT_SOURCE_DIR}/verifiers/internal/rtls_enclave_verifier_select.c
-    )
+)
+
 if(SGX)
     list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/sgx/trust/rtls_syscalls.c
-                        ${CMAKE_CURRENT_SOURCE_DIR}/sgx/trust/sgx_ecdsa_ecalls.c
-                        ${CMAKE_CURRENT_SOURCE_DIR}/sgx/trust/sgx_dummy.c
-                        )
+        ${CMAKE_CURRENT_SOURCE_DIR}/sgx/trust/sgx_ecdsa_ecalls.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/sgx/trust/sgx_dummy.c
+    )
 endif()
 
 # Static library dependencies
 if(SGX)
     set(DEPEND_TRUSTED_LIBS rtls_edl_t
-                            intel-sgx-ssl
-                            crypto_wrapper_nullcrypto
-                            crypto_wrapper_openssl
-                            tls_wrapper_nulltls
-                            tls_wrapper_openssl
-                            attester_nullattester
-                            attester_sgx_ecdsa
-                            attester_sgx_la
-                            verifier_nullverifier
-                            verifier_sgx_ecdsa_qve
-                            verifier_tdx_ecdsa
-                            verifier_sgx_la
-                            libcbor
-                            )
+        intel-sgx-ssl
+        crypto_wrapper_nullcrypto
+        crypto_wrapper_openssl
+        tls_wrapper_nulltls
+        tls_wrapper_openssl
+        attester_nullattester
+        attester_sgx_ecdsa
+        attester_sgx_la
+        verifier_nullverifier
+        verifier_sgx_ecdsa_qve
+        verifier_tdx_ecdsa
+        verifier_sgx_la
+        libcbor
+    )
 endif()
 
 # Generate library
@@ -104,21 +110,23 @@ endif()
 
 # Install lib
 install(TARGETS ${RTLS_LIB}
-    DESTINATION ${RATS_TLS_INSTALL_LIB_PATH})
+    LIBRARY DESTINATION ${RATS_TLS_INSTALL_LIB_PATH}
+    RUNTIME DESTINATION ${RATS_TLS_INSTALL_BIN_PATH}
+)
 
 # Install header
 set(RTLS_INCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/api.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/cert.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/claim.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/crypto_wrapper.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/attester.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/verifier.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/err.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/log.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/sgx.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/tls_wrapper.h
-                       ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/hash.h
-                       )
-install(DIRECTORY DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH})
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/cert.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/claim.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/crypto_wrapper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/attester.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/verifier.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/err.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/log.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/sgx.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/tls_wrapper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rats-tls/hash.h
+)
 install(FILES ${RTLS_INCLUDE_FILES}
-DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH})
+    DESTINATION ${RATS_TLS_INSTALL_INCLUDE_PATH}
+)

@@ -19,3 +19,7 @@ endif()
 if(SGX)
     add_subdirectory(sgx-la)
 endif()
+
+if(CCA)
+    add_subdirectory(arm-cca)
+endif()

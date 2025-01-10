@@ -17,8 +17,8 @@
 // clang-format off
 #ifdef SGX
 #include "sgx_report.h"
-#endif
 #include "sgx_quote_3.h"
+#endif
 // clang-format on
 
 tls_wrapper_err_t
@@ -236,18 +236,6 @@ tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
 	memset(&ev, 0, sizeof(ev));
 	ev.custom_claims = custom_claims;
 	ev.custom_claims_length = custom_claims_length;
-	if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
-		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
-
-		ev.sgx.mr_enclave = (uint8_t *)quote3->report_body.mr_enclave.m;
-		ev.sgx.mr_signer = quote3->report_body.mr_signer.m;
-		ev.sgx.product_id = quote3->report_body.isv_prod_id;
-		ev.sgx.security_version = quote3->report_body.isv_svn;
-		ev.sgx.attributes = (uint8_t *)&(quote3->report_body.attributes);
-		ev.type = SGX_ECDSA;
-		ev.quote = (char *)quote3;
-		ev.quote_size = sizeof(sgx_quote3_t);
-	}
 #if 0
 	else if (!strncmp(evidence.type, "tdx_ecdsa", sizeof(evidence.type))) {
 		sgx_quote4_t *quote4 = (sgx_quote4_t *)evidence.tdx.quote;
@@ -260,7 +248,7 @@ tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
 		ev.quote = (char *)quote4;
 	}
 #endif
-	else if (!strncmp(evidence.type, "csv", sizeof(evidence.type))) {
+	if (!strncmp(evidence.type, "csv", sizeof(evidence.type))) {
 		csv_evidence *c_evi = (csv_evidence *)evidence.csv.report;
 		csv_attestation_report *report = &c_evi->attestation_report;
 		int i = 0;
@@ -283,6 +271,21 @@ tls_wrapper_err_t tls_wrapper_verify_certificate_extension(
 		ev.quote = (char *)report;
 		ev.quote_size = sizeof(*report);
 	}
+#ifdef SGX
+	else if (!strncmp(evidence.type, "sgx_ecdsa", sizeof(evidence.type))) {
+		sgx_quote3_t *quote3 = (sgx_quote3_t *)evidence.ecdsa.quote;
+
+		ev.sgx.mr_enclave = (uint8_t *)quote3->report_body.mr_enclave.m;
+		ev.sgx.mr_signer = quote3->report_body.mr_signer.m;
+		ev.sgx.product_id = quote3->report_body.isv_prod_id;
+		ev.sgx.security_version = quote3->report_body.isv_svn;
+		ev.sgx.attributes = (uint8_t *)&(quote3->report_body.attributes);
+		ev.type = SGX_ECDSA;
+		ev.quote = (char *)quote3;
+		ev.quote_size = sizeof(sgx_quote3_t);
+	}
+
+#endif
 
 	if (tls_ctx->rtls_handle->user_callback) {
 		int rc = tls_ctx->rtls_handle->user_callback(&ev);

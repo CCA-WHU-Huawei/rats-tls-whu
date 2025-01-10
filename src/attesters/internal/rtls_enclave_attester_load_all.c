@@ -17,9 +17,9 @@
 #ifdef SGX
 #include <sgx_error.h>
 #include "rtls_t.h"
+#endif
 #define DT_REG 8
 #define DT_LNK 10
-#endif
 // clang-format on
 
 static int enclave_attester_cmp(const void *a, const void *b)

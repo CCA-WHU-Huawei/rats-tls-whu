@@ -66,6 +66,3 @@ else()
     add_executable(${PROJECT_NAME} ${SOURCES})
     target_link_libraries(${PROJECT_NAME} rats_tls)
 endif()
-
-install(TARGETS ${PROJECT_NAME}
-	DESTINATION /usr/share/rats-tls/samples)

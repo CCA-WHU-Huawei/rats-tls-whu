@@ -28,5 +28,6 @@ extern bool is_tdguest_supported(void);
 extern bool is_snpguest_supported(void);
 extern bool is_sevguest_supported(void);
 extern bool is_csvguest_supported(void);
+extern bool is_ccaguest_supported(void);
 
 #endif /* _INTERNAL_CPU_H */

@@ -16,74 +16,12 @@
 #include <rats-tls/api.h>
 #include <rats-tls/log.h>
 #include <rats-tls/claim.h>
+#include <time.h>
 
 #define DEFAULT_PORT 1234
 #define DEFAULT_IP   "127.0.0.1"
 
 // clang-format off
-#ifdef OCCLUM
-#include <sgx_report.h>
-#elif defined(SGX)
-#include <sgx_urts.h>
-#include <sgx_quote.h>
-#include "sgx_stub_u.h"
-
-#define ENCLAVE_FILENAME "sgx_stub_enclave.signed.so"
-// clang-format on
-
-rats_tls_log_level_t global_log_level = RATS_TLS_LOG_LEVEL_DEFAULT;
-
-static sgx_enclave_id_t load_enclave(bool debug_enclave)
-{
-	sgx_launch_token_t t;
-
-	memset(t, 0, sizeof(t));
-
-	sgx_enclave_id_t eid;
-	int updated = 0;
-	int ret = sgx_create_enclave(ENCLAVE_FILENAME, debug_enclave, &t, &updated, &eid, NULL);
-	if (ret != SGX_SUCCESS) {
-		RTLS_ERR("Failed to load enclave %d\n", ret);
-		return 0;
-	}
-
-	RTLS_INFO("Success to load enclave with enclave id %ld\n", eid);
-
-	return eid;
-}
-
-int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
-			    char *verifier_type, char *tls_type, char *crypto_type, bool mutual,
-			    bool provide_endorsements, bool debug_enclave, char *ip, int port,
-			    bool verdictd)
-{
-	uint32_t s_ip = inet_addr(ip);
-	uint16_t s_port = htons((uint16_t)port);
-
-	sgx_enclave_id_t enclave_id = load_enclave(debug_enclave);
-	if (enclave_id == 0) {
-		RTLS_ERR("Failed to load sgx stub enclave\n");
-		return -1;
-	}
-
-	unsigned long flags = 0;
-	if (mutual)
-		flags |= RATS_TLS_CONF_FLAGS_MUTUAL;
-	if (provide_endorsements)
-		flags |= RATS_TLS_CONF_FLAGS_PROVIDE_ENDORSEMENTS;
-
-	int ret = 0;
-	int sgx_status = ecall_rtls_client_startup((sgx_enclave_id_t)enclave_id, &ret, log_level,
-						   attester_type, verifier_type, tls_type,
-						   crypto_type, flags, s_ip, s_port, verdictd);
-	if (sgx_status != SGX_SUCCESS || ret)
-		RTLS_ERR("failed to startup client: sgx status %#x return %#x\n", sgx_status, ret);
-
-	return ret;
-}
-#endif
-
-#ifndef SGX
 
 int user_callback(void *args)
 {
@@ -158,12 +96,20 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 		return -1;
 	}
 
+	clock_t start, finish;
+	double duration;
+	start = clock();
 	ret = rats_tls_negotiate(handle, sockfd);
 	if (ret != RATS_TLS_ERR_NONE) {
 		RTLS_ERR("Failed to negotiate %#x\n", ret);
 		goto err;
 	}
 
+
+	
+	finish = clock();
+	duration = (double)(finish - start)/CLOCKS_PER_SEC;
+	RTLS_INFO("CCA-RA-TLS connect %lf\n", duration * 22);
 	const char *msg;
 	if (verdictd)
 		msg = "{ \"command\": \"echo\", \"data\": \"Hello and welcome to RATS-TLS!\\n\" }";
@@ -235,17 +181,10 @@ err:
 
 	return -1;
 }
-#endif
 
 int main(int argc, char **argv)
 {
-#ifdef SGX
-	printf("    \033[91mWelcome to RATS-TLS sample client for Intel SGX\033[0m\n");
-#elif defined(OCCLUM)
-	printf("    \033[91mWelcome to RATS-TLS sample client for Occlum SGX\033[0m\n");
-#else
-	printf("    \033[91mWelcome to RATS-TLS sample client\033[0m\n");
-#endif
+	printf("    \033[91mWelcome to RATS-TLS sample client for ARM CCA\033[0m\n");
 
 	char *const short_options = "a:v:t:c:mel:i:p:DEh";
 	// clang-format off
@@ -270,7 +209,7 @@ int main(int argc, char **argv)
 	char *verifier_type = "";
 	char *tls_type = "";
 	char *crypto_type = "";
-	bool mutual = false;
+	bool mutual = true;
 	bool provide_endorsements = false;
 	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
 	char *srv_ip = DEFAULT_IP;

@@ -18,13 +18,15 @@
 
 rats_tls_err_t rats_tls_init(const rats_tls_conf_t *conf, rats_tls_handle *handle)
 {
-	if (!conf || !handle)
+	if (!conf || !handle) {
 		return -RATS_TLS_ERR_INVALID;
+	}
+		
 
 	RTLS_DEBUG("conf %p, handle %p\n", conf, handle);
 
 	rtls_core_context_t *ctx = calloc(1, sizeof(*ctx));
-	if (!ctx)
+	if (!ctx) 
 		return -RATS_TLS_ERR_NO_MEM;
 
 	ctx->config = *conf;

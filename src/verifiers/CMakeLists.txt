@@ -1,19 +1,20 @@
 add_subdirectory(nullverifier)
 
-include(FindSgxDcapQuoteVerify)
-
 if(HOST OR TDX)
     if(SGXDCAPQV_FOUND)
         add_subdirectory(sgx-ecdsa)
     else()
         message(WARNING "It will not build sgx_ecdsa verifier due to libsgx_dcap_quoteverify.so not found")
     endif()
+
     add_subdirectory(sev-snp)
     add_subdirectory(sev)
     add_subdirectory(csv)
 endif()
 
 if(TDX OR SGX)
+    include(FindSgxDcapQuoteVerify)
+
     if(SGXDCAPQV_FOUND)
         add_subdirectory(tdx-ecdsa)
     else()
@@ -27,4 +28,8 @@ endif()
 
 if(SGX)
     add_subdirectory(sgx-la)
+endif()
+
+if(CCA)
+    add_subdirectory(arm-cca)
 endif()

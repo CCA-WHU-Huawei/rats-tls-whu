@@ -1,6 +1,10 @@
 # Normal and occlum mode
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -fPIC -Werror=implicit-function-declaration")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLArGS}")
 set(RATS_TLS_LDFLAGS "-fPIC -Bsymbolic -ldl")
+
+if(CCA)
+    message("Using aarch64 cross compilation for CCA mode")
+endif()
 
 if(OCCLUM)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DOCCLUM")

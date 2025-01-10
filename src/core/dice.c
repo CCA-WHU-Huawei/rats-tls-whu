@@ -26,6 +26,8 @@ uint64_t tag_of_evidence_type(const char *type)
 		return OCBR_TAG_EVIDENCE_SEV;
 	} else if (!strcmp(type, "csv")) {
 		return OCBR_TAG_EVIDENCE_CSV;
+	} else if (!strcmp(type, "arm_cca")) {
+		return OCBR_TAG_EVIDENCE_CCA;
 	}
 
 	RTLS_FATAL("Unhandled evidence type '%s'\n", type);
@@ -60,6 +62,9 @@ const uint8_t *evidence_get_raw_as_ref(const attestation_evidence_t *evidence, s
 	} else if (!strcmp(evidence->type, "csv")) {
 		data = (const uint8_t *)&evidence->csv.report;
 		size = evidence->csv.report_len;
+	} else if (!strcmp(evidence->type, "arm_cca")) {
+		data = (const uint8_t *)&evidence->cca.quote;
+		size = evidence->cca.quote_len;
 	} else {
 		RTLS_FATAL("Unhandled evidence type '%s'\n", evidence->type);
 		*size_out = 0;
@@ -147,6 +152,10 @@ int evidence_from_raw(const uint8_t *data, size_t size, uint64_t tag,
 		memcpy(evidence->type, "csv", sizeof("csv"));
 		memcpy((uint8_t *)&evidence->csv.report, data, size);
 		evidence->csv.report_len = size;
+	} else if (tag == OCBR_TAG_EVIDENCE_CCA) {
+		memcpy(evidence->type, "arm_cca", sizeof("arm_cca"));
+		memcpy((uint8_t *)&evidence->cca.quote, data, size);
+		evidence->cca.quote_len = size;
 	}
 
 	return 0;

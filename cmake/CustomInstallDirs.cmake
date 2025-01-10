@@ -1,8 +1,8 @@
 # /usr/local
-set(RATS_TLS_INSTALL_PATH "/usr/local")
+set(RATS_TLS_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}")
 
 # lib/rats_tls
-set(RATS_TLS_INSTALL_LIB_PATH "${RATS_TLS_INSTALL_PATH}/lib/rats-tls")
+set(RATS_TLS_INSTALL_LIB_PATH "lib/rats-tls")
 
 # rats_tls/crypto-wrappers
 set(RATS_TLS_INSTALL_LIBCW_PATH "${RATS_TLS_INSTALL_LIB_PATH}/crypto-wrappers")
@@ -17,10 +17,10 @@ set(RATS_TLS_INSTALL_LIBV_PATH "${RATS_TLS_INSTALL_LIB_PATH}/verifiers")
 set(RATS_TLS_INSTALL_LIBTW_PATH "${RATS_TLS_INSTALL_LIB_PATH}/tls-wrappers")
 
 # include/rats_tls
-set(RATS_TLS_INSTALL_INCLUDE_PATH "${RATS_TLS_INSTALL_PATH}/include/rats-tls")
+set(RATS_TLS_INSTALL_INCLUDE_PATH "include/rats-tls")
 
 # rats_tls/sample
-set(RATS_TLS_INSTALL_BIN_PATH "/usr/share/rats-tls/samples")
+set(RATS_TLS_INSTALL_BIN_PATH "bin")
 
 # sgx sdk
 if(EXISTS $ENV{SGX_SDK})
