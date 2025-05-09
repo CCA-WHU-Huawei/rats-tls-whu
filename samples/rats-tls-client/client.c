@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <errno.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <stdint.h>
 #include <getopt.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -109,7 +114,7 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	
 	finish = clock();
 	duration = (double)(finish - start)/CLOCKS_PER_SEC;
-	RTLS_INFO("CCA-RA-TLS connect %lf\n", duration * 22);
+	RTLS_INFO("CCA-RA-TLS all used_time %lf\n", duration);
 	const char *msg;
 	if (verdictd)
 		msg = "{ \"command\": \"echo\", \"data\": \"Hello and welcome to RATS-TLS!\\n\" }";
@@ -169,6 +174,65 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 		goto err;
 	}
 
+
+#if 0
+	uint64_t msk;
+	char buffer[100];
+	len = 100;
+	rats_tls_receive(handle, buffer, &len);
+	printf("len = %d\n", len);
+	buffer[len] = '\0';
+
+	char *endptr;
+	msk = strtoull(buffer, &endptr, 10);
+
+	if (ret != RATS_TLS_ERR_NONE) {
+		RTLS_ERR("Failed to receive MSK %#x\n", ret);
+		goto err;
+	} else {
+		printf("Received MSK %lu, buffer = %s, len = %d", msk, buffer, len);
+	}
+#else
+	clock_t t3, t4;
+	t3 = clock();
+
+	unsigned long msk;
+	len = sizeof(unsigned long);
+	ret = rats_tls_receive(handle, &msk, &len);
+	if (ret != RATS_TLS_ERR_NONE) {
+		RTLS_ERR("Failed to receive MSK %#x\n", ret);
+		goto err;
+	} else {
+		printf("Received MSK %lu\n", msk);
+	}
+
+
+#endif
+
+#define MIG_IOCTL_SET_MSK _IOW('m', 0, unsigned long)
+
+	int fd = open("/dev/mig_device", O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open device file");
+        return errno;
+    }
+
+    // 使用 ioctl 设置 MSK 值
+    if (ioctl(fd, MIG_IOCTL_SET_MSK, msk) < 0) {
+        perror("Failed to set MSK value");
+        close(fd);
+        return errno;
+    }
+
+	t4 = clock();
+	duration = (double)(t4 - t3)/CLOCKS_PER_SEC;
+	RTLS_INFO("Platform Set MSK used_time %lf\n", duration);
+
+    printf("MSK value has been set successfully\n");
+
+    // 关闭设备文件
+    close(fd);
+
 	ret = rats_tls_cleanup(handle);
 	if (ret != RATS_TLS_ERR_NONE)
 		RTLS_ERR("Failed to cleanup %#x\n", ret);
@@ -209,7 +273,7 @@ int main(int argc, char **argv)
 	char *verifier_type = "";
 	char *tls_type = "";
 	char *crypto_type = "";
-	bool mutual = true;
+	bool mutual = false;
 	bool provide_endorsements = false;
 	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
 	char *srv_ip = DEFAULT_IP;

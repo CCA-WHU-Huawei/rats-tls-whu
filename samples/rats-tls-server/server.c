@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <inttypes.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <errno.h>
+#include <stdint.h>
 #include <getopt.h>
 #include <errno.h>
 #include <unistd.h>
@@ -115,14 +120,13 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 		return -1;
 	}
 
-	
-
 	ret = rats_tls_set_verification_callback(&handle, NULL);
 	if (ret != RATS_TLS_ERR_NONE) {
 		RTLS_ERR("Failed to set verification callback %#x\n", ret);
 		return -1;
 	}
 
+	unsigned long msk = 2024282210225;
 	while (1) {
 		RTLS_INFO("Waiting for a connection from client ...\n");
 
@@ -130,9 +134,9 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 		struct sockaddr_in c_addr;
 		socklen_t size = sizeof(c_addr);
 
-		clock_t start, finish;
-		double duration;
-		start = clock();
+		//clock_t t1, t2;
+		//double duration;
+		//t1 = clock();
 		int connd = accept(sockfd, (struct sockaddr *)&c_addr, &size);
 		if (connd < 0) {
 			RTLS_ERR("Failed to call accept()");
@@ -145,9 +149,9 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 			goto err;
 		}
 
-		finish = clock();
-		duration = (double)(finish - start)/CLOCKS_PER_SEC;
-		RTLS_INFO("CCA-RA-TLS connect %lf\n", duration * 22);
+		//t2 = clock();
+		//duration = (double)(t2 - t1)/CLOCKS_PER_SEC;
+		//RTLS_INFO("CCA-RA-TLS connect all time %lf\n", duration);
 		RTLS_DEBUG("Client connected successfully\n");
 
 		char buf[256];
@@ -172,7 +176,31 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 			goto err;
 		}
 
+		len = sizeof(unsigned long);
+		ret = rats_tls_transmit(handle, &msk, &len);
+		if (ret != RATS_TLS_ERR_NONE) {
+			RTLS_ERR("Failed to transmit MSK%#x\n", ret);
+			goto err;
+		};
+
 		close(connd);
+
+		#define MIG_IOCTL_SET_MSK _IOW('m', 0, unsigned long)
+
+		int fd = open("/dev/mig_device", O_RDWR);
+		if (fd < 0) {
+			perror("Failed to oplsen device file");
+			return errno;
+		}
+
+		// 使用 ioctl 设置 MSK 值
+		if (ioctl(fd, MIG_IOCTL_SET_MSK, msk) < 0) {
+			perror("Failed to set MSK value");
+			close(fd);
+			return errno;
+		}
+
+		printf("MSK value has been set successfully\n");
 	}
 
 	ret = rats_tls_cleanup(handle);
@@ -216,7 +244,7 @@ int main(int argc, char **argv)
 	char *verifier_type = "";
 	char *tls_type = "";
 	char *crypto_type = "";
-	bool mutual = true;
+	bool mutual = false;
 	bool provide_endorsements = false;
 	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
 	char *ip = DEFAULT_IP;
