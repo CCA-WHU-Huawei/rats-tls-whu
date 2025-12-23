@@ -1,4 +1,4 @@
-add_subdirectory(nullverifier)
+add_subdirectory(arm-cca)
 
 if(HOST OR TDX)
     if(SGXDCAPQV_FOUND)

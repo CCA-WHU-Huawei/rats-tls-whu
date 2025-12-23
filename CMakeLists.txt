@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.15.0)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Set compiler based on build mode - MUST BE BEFORE project()
-if(RATS_TLS_BUILD_MODE STREQUAL "cca")
+if(RATS_TLS_BUILD_MODE STREQUAL "CCA")
     #set(CMAKE_SYSTEM_NAME Linux)
     #set(CMAKE_SYSTEM_PROCESSOR aarch64)
     #set(CMAKE_C_COMPILER aarch64-unknown-linux-gnu-gcc)

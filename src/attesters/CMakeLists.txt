@@ -1,4 +1,4 @@
-add_subdirectory(nullattester)
+add_subdirectory(arm-cca)
 
 if(HOST)
     add_subdirectory(sev)

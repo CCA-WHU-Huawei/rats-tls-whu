@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <errno.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <stdint.h>
 #include <getopt.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -35,6 +40,56 @@ int user_callback(void *args)
 		       (int)ev->custom_claims[i].value_size, ev->custom_claims[i].value);
 	}
 	return 1;
+}
+
+// 模幂运算函数：计算 (base^exp) % mod
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+uint64_t client_diffie_hellman_custom(rats_tls_handle handle) {
+    // 公共参数：256 位素数 p 和生成元 g
+    uint64_t p = 0xFFFFFFFFFFFFFFC5; // 示例素数（实际应使用更大的素数）
+    uint64_t g = 5;
+
+    // 客户端生成私钥 b
+    uint64_t b = rand() % (p - 2) + 1; // 随机数范围 [1, p-1]
+
+    // 客户端计算公钥 B = g^b mod p
+    uint64_t B = mod_exp(g, b, p);
+    printf("Client Public Key (B): %lu\n", B);
+
+    // 发送公钥 B 给服务端
+    int lenB = sizeof(B);
+    if (rats_tls_transmit(handle, &B, &lenB) != RATS_TLS_ERR_NONE) {
+        perror("Failed to send client public key");
+        return;
+    }
+
+    // 接收服务端的公钥 A
+    uint64_t A;
+    int lenA = sizeof(A);
+    if (rats_tls_receive(handle, &A, &lenA) != RATS_TLS_ERR_NONE) {
+        perror("Failed to receive server public key");
+        return;
+    }
+    printf("Received Server Public Key (A): %lu\n", A);
+
+    // 计算共享密钥 K = A^b mod p
+    uint64_t K = mod_exp(A, b, p);
+    printf("Client Shared Key (K): %lu\n", K);
+
+    // 使用共享密钥 K 进行后续操作
+    return K;
 }
 
 int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
@@ -109,7 +164,7 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	
 	finish = clock();
 	duration = (double)(finish - start)/CLOCKS_PER_SEC;
-	RTLS_INFO("CCA-RA-TLS connect %lf\n", duration * 22);
+	RTLS_INFO("CCA-RA-TLS all used_time %lf\n", duration);
 	const char *msg;
 	if (verdictd)
 		msg = "{ \"command\": \"echo\", \"data\": \"Hello and welcome to RATS-TLS!\\n\" }";
@@ -169,6 +224,64 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 		goto err;
 	}
 
+
+#if 0
+	uint64_t msk;
+	char buffer[100];
+	len = 100;
+	rats_tls_receive(handle, buffer, &len);
+	printf("len = %d\n", len);
+	buffer[len] = '\0';
+
+	char *endptr;
+	msk = strtoull(buffer, &endptr, 10);
+
+	if (ret != RATS_TLS_ERR_NONE) {
+		RTLS_ERR("Failed to receive MSK %#x\n", ret);
+		goto err;
+	} else {
+		printf("Received MSK %lu, buffer = %s, len = %d", msk, buffer, len);
+	}
+#else
+	clock_t t3, t4;
+	t3 = clock();
+
+//  ------  df hellman  -------
+    unsigned long msk[4];
+    msk[0] = client_diffie_hellman_custom(handle);
+    msk[1] = client_diffie_hellman_custom(handle);
+    msk[2] = client_diffie_hellman_custom(handle);
+    msk[3] = client_diffie_hellman_custom(handle);
+    
+    printf("Client compute MSK 0x%lx, 0x%lx, 0x%lx, 0x%lx\n", msk[0], msk[1], msk[2], msk[3]);
+//  ------  shared key done -----
+
+#endif
+
+#define MIG_IOCTL_SET_MSK _IOW('m', 0, unsigned long)
+
+	int fd = open("/dev/mig_device", O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open device file");
+        return errno;
+    }
+
+    // 使用 ioctl 设置 MSK 值
+    if (ioctl(fd, MIG_IOCTL_SET_MSK, msk) < 0) {
+        perror("Failed to set MSK value");
+        close(fd);
+        return errno;
+    }
+
+	t4 = clock();
+	duration = (double)(t4 - t3)/CLOCKS_PER_SEC;
+	RTLS_INFO("Platform Set MSK used_time %lf\n", duration);
+
+    printf("MSK value has been set successfully\n");
+
+    // 关闭设备文件
+    close(fd);
+
 	ret = rats_tls_cleanup(handle);
 	if (ret != RATS_TLS_ERR_NONE)
 		RTLS_ERR("Failed to cleanup %#x\n", ret);
@@ -209,7 +322,7 @@ int main(int argc, char **argv)
 	char *verifier_type = "";
 	char *tls_type = "";
 	char *crypto_type = "";
-	bool mutual = true;
+	bool mutual = false;
 	bool provide_endorsements = false;
 	rats_tls_log_level_t log_level = RATS_TLS_LOG_LEVEL_INFO;
 	char *srv_ip = DEFAULT_IP;
