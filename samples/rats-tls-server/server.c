@@ -28,6 +28,55 @@
 #define DEFAULT_PORT 1234
 #define DEFAULT_IP   "127.0.0.1"
 
+// 模幂运算函数：计算 (base^exp) % mod
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+uint64_t server_diffie_hellman_custom(rats_tls_handle handle) {
+    // 公共参数：256 位素数 p 和生成元 g
+    uint64_t p = 0xFFFFFFFFFFFFFFC5; // 示例素数（实际应使用更大的素数）
+    uint64_t g = 5;
+
+    // 服务端生成私钥 b
+    uint64_t b = rand() % (p - 2) + 1; // 随机数范围 [1, p-1]
+
+    // 服务端计算公钥 B = g^b mod p
+    uint64_t B = mod_exp(g, b, p);
+    printf("Server Public Key (B): %lu\n", B);
+
+    // 发送公钥 B 给客户端
+    int lenB = sizeof(B);
+    if (rats_tls_transmit(handle, &B, &lenB) != RATS_TLS_ERR_NONE) {
+        perror("Failed to send server public key");
+        return;
+    }
+
+    // 接收客户端的公钥 A
+    uint64_t A;
+    int lenA = sizeof(A);
+    if (rats_tls_receive(handle, &A, &lenA) != RATS_TLS_ERR_NONE) {
+        perror("Failed to receive client public key");
+        return;
+    }
+    printf("Received Client Public Key (A): %lu\n", A);
+
+    // 计算共享密钥 K = A^b mod p
+    uint64_t K = mod_exp(A, b, p);
+    printf("Server Shared Key (K): %lu\n", K);
+
+    // 使用共享密钥 K 进行后续操作
+    return K;
+}
 
 /* For Occlum and host builds */
 int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
@@ -126,7 +175,6 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 		return -1;
 	}
 
-	unsigned long msk = 2024282210225;
 	while (1) {
 		RTLS_INFO("Waiting for a connection from client ...\n");
 
@@ -175,16 +223,16 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 			RTLS_ERR("Failed to transmit %#x\n", ret);
 			goto err;
 		}
+// ------  Diff-hellman: MSK  -------
+        unsigned long msk[4];
+        msk[0] = server_diffie_hellman_custom(handle);
+        msk[1] = server_diffie_hellman_custom(handle);
+        msk[2] = server_diffie_hellman_custom(handle);
+        msk[3] = server_diffie_hellman_custom(handle);
+        
+        printf("Server compute MSK 0x%lx, 0x%lx, 0x%lx, 0x%lx\n", msk[0], msk[1], msk[2], msk[3]);
 
-		len = sizeof(unsigned long);
-		ret = rats_tls_transmit(handle, &msk, &len);
-		if (ret != RATS_TLS_ERR_NONE) {
-			RTLS_ERR("Failed to transmit MSK%#x\n", ret);
-			goto err;
-		};
-
-		close(connd);
-
+//  --------  shared_key  compute   -------
 		#define MIG_IOCTL_SET_MSK _IOW('m', 0, unsigned long)
 
 		int fd = open("/dev/mig_device", O_RDWR);

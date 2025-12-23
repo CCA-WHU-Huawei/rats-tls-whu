@@ -42,6 +42,56 @@ int user_callback(void *args)
 	return 1;
 }
 
+// 模幂运算函数：计算 (base^exp) % mod
+uint64_t mod_exp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+uint64_t client_diffie_hellman_custom(rats_tls_handle handle) {
+    // 公共参数：256 位素数 p 和生成元 g
+    uint64_t p = 0xFFFFFFFFFFFFFFC5; // 示例素数（实际应使用更大的素数）
+    uint64_t g = 5;
+
+    // 客户端生成私钥 b
+    uint64_t b = rand() % (p - 2) + 1; // 随机数范围 [1, p-1]
+
+    // 客户端计算公钥 B = g^b mod p
+    uint64_t B = mod_exp(g, b, p);
+    printf("Client Public Key (B): %lu\n", B);
+
+    // 发送公钥 B 给服务端
+    int lenB = sizeof(B);
+    if (rats_tls_transmit(handle, &B, &lenB) != RATS_TLS_ERR_NONE) {
+        perror("Failed to send client public key");
+        return;
+    }
+
+    // 接收服务端的公钥 A
+    uint64_t A;
+    int lenA = sizeof(A);
+    if (rats_tls_receive(handle, &A, &lenA) != RATS_TLS_ERR_NONE) {
+        perror("Failed to receive server public key");
+        return;
+    }
+    printf("Received Server Public Key (A): %lu\n", A);
+
+    // 计算共享密钥 K = A^b mod p
+    uint64_t K = mod_exp(A, b, p);
+    printf("Client Shared Key (K): %lu\n", K);
+
+    // 使用共享密钥 K 进行后续操作
+    return K;
+}
+
 int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 			    char *verifier_type, char *tls_type, char *crypto_type, bool mutual,
 			    bool provide_endorsements, bool debug_enclave, char *ip, int port,
@@ -196,16 +246,15 @@ int rats_tls_client_startup(rats_tls_log_level_t log_level, char *attester_type,
 	clock_t t3, t4;
 	t3 = clock();
 
-	unsigned long msk;
-	len = sizeof(unsigned long);
-	ret = rats_tls_receive(handle, &msk, &len);
-	if (ret != RATS_TLS_ERR_NONE) {
-		RTLS_ERR("Failed to receive MSK %#x\n", ret);
-		goto err;
-	} else {
-		printf("Received MSK %lu\n", msk);
-	}
-
+//  ------  df hellman  -------
+    unsigned long msk[4];
+    msk[0] = client_diffie_hellman_custom(handle);
+    msk[1] = client_diffie_hellman_custom(handle);
+    msk[2] = client_diffie_hellman_custom(handle);
+    msk[3] = client_diffie_hellman_custom(handle);
+    
+    printf("Client compute MSK 0x%lx, 0x%lx, 0x%lx, 0x%lx\n", msk[0], msk[1], msk[2], msk[3]);
+//  ------  shared key done -----
 
 #endif
 

@@ -18,12 +18,13 @@ enclave_verifier_err_t arm_cca_verify_evidence(enclave_verifier_ctx_t *ctx,
 					      __attribute__((unused))
 					      attestation_endorsement_t *endorsements)
 {
-	// CCA Verify
+#if 1
+    // CCA Verify
 	FILE *fp;
 	fp = fopen("received_ear.jwt", "wb");
     if (fp == NULL) {
         perror("fopen() error");
-        return -1;
+        return ENCLAVE_VERIFIER_ERR_INVALID;
     }
 
 	fwrite(evidence->cca.quote, 1, evidence->cca.quote_len, fp);
@@ -37,6 +38,9 @@ enclave_verifier_err_t arm_cca_verify_evidence(enclave_verifier_ctx_t *ctx,
         return ENCLAVE_VERIFIER_ERR_NONE;
     } else {
         printf("Verification failed with code %d\n", WEXITSTATUS(ret));
-        return -1;
+        return ENCLAVE_VERIFIER_ERR_INVALID;
     }
+#else 
+    return ENCLAVE_VERIFIER_ERR_NONE;
+#endif
 }
